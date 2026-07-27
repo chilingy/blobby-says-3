@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blobby Says 3</title>
+<meta name="description" content="Pick 3 things. Blobby believes in you.">
+<meta name="theme-color" content="#FFEDE3">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Blobby">
+</head>
+<body>
+<style>
+  :root{
+    --bg:#FFEDE3; --bg2:#FFE2D2; --card:#FFF9F4; --card-edge:#F3D8CC;
+    --ink:#4A3238; --ink-soft:#97757C;
+    --pink:#F7C5C8; --pink-deep:#EFA0AB; --blush:#F2939F;
+    --accent:#F26D5B; --accent-ink:#FFF6F3;
+    --gold:#F5A623; --mint:#3FAE84;
+    --shadow:0 10px 30px rgba(74,50,56,.10);
+    --bubble:#FFFFFF;
+    --wall:#FBE3D8; --floor:#EBC3B2;
+  }
+  /* single fixed theme: Blobby's world is always warm peach */
+  :root, :root[data-theme="dark"], :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#FFEDE3; --bg2:#FFE2D2; --card:#FFF9F4; --card-edge:#F3D8CC;
+    --ink:#4A3238; --ink-soft:#97757C;
+    --accent:#F26D5B; --accent-ink:#FFF6F3;
+    --gold:#F5A623; --mint:#3FAE84;
+    --shadow:0 10px 30px rgba(74,50,56,.10);
+    --bubble:#FFFFFF;
+    --wall:#FBE3D8; --floor:#EBC3B2;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",Quicksand,system-ui,sans-serif;
+    background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+    color:var(--ink); min-height:100dvh;
+  }
+  button{font:inherit; color:inherit; border:0; background:none; cursor:pointer}
+  input{font:inherit; color:inherit}
+
+  .app{max-width:420px; margin:0 auto; padding:18px 18px 40px; min-height:100dvh;
+       display:flex; flex-direction:column; gap:14px}
+
+  header{display:flex; align-items:center; justify-content:space-between; gap:8px}
+  .wordmark{font-weight:800; letter-spacing:.16em; font-size:13px; text-transform:uppercase}
+  .wordmark small{display:block; letter-spacing:.02em; text-transform:none; font-weight:500;
+                  color:var(--ink-soft); font-size:11px; margin-top:2px}
+  .hdr-right{display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+  .chip{background:var(--card); border:1px solid var(--card-edge); border-radius:999px;
+        padding:6px 11px; font-size:12px; font-weight:700; color:var(--ink);
+        display:flex; align-items:center; gap:5px}
+  .chip .star{color:var(--gold)}
+  .coin{width:14px; height:14px; border-radius:50%; background:var(--gold);
+        border:2px solid rgba(0,0,0,.15); display:inline-block}
+  .chip.pop{animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes pop{50%{transform:scale(1.25)}}
+  .chip-btn{transition:transform .12s}
+  .chip-btn:active{transform:scale(.93)}
+  .icon-btn{width:34px; height:34px; border-radius:50%; background:var(--card);
+            border:1px solid var(--card-edge); display:grid; place-items:center}
+  .icon-btn svg{width:17px; height:17px; fill:var(--ink-soft)}
+  .icon-btn.off svg{opacity:.35}
+
+  /* ---------- character stage ---------- */
+  .stage{display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:4px}
+  .bubble{position:relative; background:var(--bubble); border-radius:18px; padding:12px 16px;
+          max-width:34ch; font-size:14.5px; line-height:1.45; box-shadow:var(--shadow);
+          text-align:center; font-weight:500; text-wrap:balance}
+  .bubble::after{content:""; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%) rotate(45deg);
+                 width:14px; height:14px; background:var(--bubble); border-radius:3px}
+  .blobby-wrap{width:172px; touch-action:manipulation; user-select:none; -webkit-user-select:none;
+               position:relative}
+  .blobby-wrap::before{content:""; position:absolute; left:50%; bottom:1px;
+               transform:translateX(-50%); width:60%; height:13px; border-radius:50%;
+               background:radial-gradient(ellipse, rgba(74,50,56,.20), transparent 70%)}
+  .blobby{width:100%; display:block; position:relative; transform-origin:50% 90%;
+         transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+  .blobby-wrap.squish .blobby{transform:scale(1.09,.88)}
+  .blobby-wrap.wiggle .blobby{animation:wiggle .5s ease-in-out}
+  @keyframes wiggle{25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}
+  .blobby-wrap.hop .blobby{animation:hop .55s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes hop{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(.98,1.04)}
+                 60%{transform:translateY(0) scale(1.06,.92)}100%{transform:translateY(0)}}
+  .blobby-wrap.bob .blobby{animation:bob 2.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  /* ---------- slots ---------- */
+  .slots{display:flex; flex-direction:column; gap:10px}
+  .slot-label{font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+              color:var(--ink-soft); margin:2px 2px 0}
+  .slot{background:var(--card); border:1px solid var(--card-edge); border-radius:20px;
+        padding:14px 14px 14px 16px; box-shadow:var(--shadow);
+        display:flex; align-items:center; gap:12px; min-height:72px}
+  .slot.empty{border-style:dashed; background:transparent; box-shadow:none; justify-content:center}
+  .slot.empty button{color:var(--ink-soft); font-weight:700; font-size:14px; padding:14px;
+                     width:100%; text-align:center}
+  .slot.frog{border-color:var(--accent); border-width:1.5px}
+  .slot.done{opacity:.72}
+  .task-main{flex:1; min-width:0}
+  .task-text{font-size:15px; font-weight:700; line-height:1.3; overflow-wrap:anywhere}
+  .slot.done .task-text{text-decoration:line-through; text-decoration-thickness:2px;
+                        text-decoration-color:var(--mint)}
+  .task-tags{display:flex; gap:6px; margin-top:7px; flex-wrap:wrap}
+  .tag{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;
+       border:1px solid var(--card-edge); color:var(--ink-soft); background:transparent}
+  .tag.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+  .tag.tiny-on{background:var(--gold); color:#3A2A08; border-color:var(--gold)}
+  .check{width:44px; height:44px; min-width:44px; border-radius:50%;
+         border:2.5px solid var(--card-edge); display:grid; place-items:center;
+         transition:transform .15s, background .2s, border-color .2s}
+  .check:active{transform:scale(.9)}
+  .check svg{width:20px; height:20px; stroke:var(--card-edge); stroke-width:3.5;
+             fill:none; stroke-linecap:round; stroke-linejoin:round; transition:stroke .2s}
+  .check.on{background:var(--mint); border-color:var(--mint)}
+  .check.on svg{stroke:#fff}
+  .putback{color:var(--ink-soft); font-size:18px; padding:4px 6px; line-height:1}
+
+  .whisper{text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.5;
+           max-width:36ch; margin:4px auto 0; text-wrap:balance}
+  .more-btn[hidden]{display:none}
+  .more-btn{margin:6px auto 0; display:block; background:var(--card); border:1.5px solid var(--card-edge);
+            border-radius:999px; padding:11px 20px; font-size:14px; font-weight:700}
+
+  /* ---------- bottom sheet ---------- */
+  .scrim{position:fixed; inset:0; background:rgba(40,22,28,.35); opacity:0;
+         pointer-events:none; transition:opacity .25s; z-index:20}
+  .scrim.show{opacity:1; pointer-events:auto}
+  .sheet{position:fixed; left:0; right:0; bottom:0; z-index:21; background:var(--card);
+         border-radius:26px 26px 0 0; padding:18px 18px 30px; max-width:420px; margin:0 auto;
+         transform:translateY(105%); transition:transform .3s cubic-bezier(.32,.72,.28,1);
+         box-shadow:0 -12px 40px rgba(40,22,28,.18); max-height:72dvh; display:flex;
+         flex-direction:column; gap:12px}
+  .sheet.show{transform:translateY(0)}
+  .sheet h2{margin:0; font-size:16px; font-weight:800}
+  .sheet p{margin:0; font-size:13px; color:var(--ink-soft); line-height:1.45}
+  .someday{overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-bottom:4px;
+           min-height:60px}
+  .someday-item{display:flex; align-items:center; gap:8px}
+  .someday-item .pickit{flex:1; text-align:left; background:var(--bg); border:1px solid var(--card-edge);
+        border-radius:14px; padding:12px 14px; font-size:14px; font-weight:600;
+        transition:transform .12s}
+  .someday-item .pickit:active{transform:scale(.97)}
+  .someday-item .zap{color:var(--ink-soft); font-size:16px; padding:6px}
+  .addrow{display:flex; gap:8px}
+  .addrow input{flex:1; border:1.5px solid var(--card-edge); background:var(--bg);
+        border-radius:14px; padding:12px 14px; font-size:14px; outline:none; min-width:0}
+  .addrow input:focus{border-color:var(--accent)}
+  .addrow input.cost{flex:0 0 74px}
+  .addrow button{background:var(--accent); color:var(--accent-ink); font-weight:800;
+        border-radius:14px; padding:0 18px}
+
+  /* ---------- focus overlay ---------- */
+  .focus{position:fixed; inset:0; z-index:30; background:linear-gradient(180deg,var(--bg),var(--bg2));
+         display:none; flex-direction:column; align-items:center; justify-content:center;
+         gap:16px; padding:24px; text-align:center}
+  .focus.show{display:flex}
+  .focus .task-title{font-size:17px; font-weight:800; max-width:30ch; text-wrap:balance}
+  .focus .time{font-size:44px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.02em}
+  .pool{width:min(300px,80vw); height:16px; border-radius:999px; background:var(--card);
+        border:1px solid var(--card-edge); overflow:hidden}
+  .pool i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--gold));
+          border-radius:999px; transition:width 1s linear}
+  .durs{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+  .durs button{border:1.5px solid var(--card-edge); background:var(--card);
+        border-radius:999px; padding:9px 16px; font-size:13px; font-weight:700; color:var(--ink)}
+  .durs button.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+  .durs .mus-label{align-self:center; font-size:11px; font-weight:800; letter-spacing:.1em;
+        text-transform:uppercase; color:var(--ink-soft); width:100%; text-align:center}
+  .focus .leave{color:var(--ink-soft); font-size:13px; font-weight:600; padding:8px; text-decoration:underline}
+  .focus .blobby-wrap{width:140px}
+
+  /* ---------- overlays: room & log ---------- */
+  .overlay{position:fixed; inset:0; z-index:32; background:rgba(40,22,28,.35);
+        display:none; align-items:flex-end; justify-content:center}
+  .overlay.show{display:flex}
+  .overlay-card{background:var(--card); width:100%; max-width:420px; border-radius:26px 26px 0 0;
+             padding:18px 18px 30px; max-height:88dvh; overflow-y:auto;
+             display:flex; flex-direction:column; gap:14px}
+  .overlay-head{display:flex; align-items:center; justify-content:space-between}
+  .overlay-head h2{margin:0; font-size:16px; font-weight:800}
+  .overlay-head .sub{font-size:11.5px; color:var(--ink-soft); font-weight:600; margin-top:2px}
+  .overlay-head button{font-size:22px; color:var(--ink-soft); padding:2px 8px; line-height:1}
+  .scene{position:relative; height:230px; border-radius:18px; overflow:hidden;
+         border:1px solid var(--card-edge); touch-action:none;
+         background:linear-gradient(180deg, var(--wall) 0%, var(--wall) 64%, var(--floor) 64%, var(--floor) 100%)}
+  .scene .blobby-wrap{width:110px; position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:1}
+  .furn{position:absolute; font-size:34px; line-height:1; z-index:2; cursor:grab;
+        touch-action:none; user-select:none; -webkit-user-select:none;
+        filter:drop-shadow(0 3px 4px rgba(0,0,0,.12))}
+  .furn:active{cursor:grabbing}
+  .shop{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .shop-item{display:flex; align-items:center; gap:10px; background:var(--bg);
+             border:1px solid var(--card-edge); border-radius:14px; padding:10px 12px;
+             text-align:left; transition:transform .12s}
+  .shop-item:active{transform:scale(.97)}
+  .shop-item .em{font-size:24px}
+  .shop-item .nm{font-size:12.5px; font-weight:700; line-height:1.25}
+  .shop-item .pr{font-size:11.5px; color:var(--ink-soft); font-weight:700;
+                 display:flex; align-items:center; gap:4px; margin-top:2px}
+  .shop-item.owned .pr{color:var(--mint)}
+  .shop-note{margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.5; text-align:center}
+  .sect-h{margin:4px 0 0; font-size:11px; font-weight:800; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--ink-soft)}
+  .treat{display:flex; align-items:center; gap:10px; background:var(--bg);
+         border:1px solid var(--card-edge); border-radius:14px; padding:10px 12px}
+  .treat .nm{flex:1; font-size:13.5px; font-weight:700; min-width:0; overflow-wrap:anywhere}
+  .treat .pr{font-size:12px; color:var(--ink-soft); font-weight:700; display:flex; align-items:center; gap:4px}
+  .treat .redeem{background:var(--accent); color:var(--accent-ink); font-weight:800;
+         border-radius:999px; padding:7px 13px; font-size:12px}
+  .treat .redeem:disabled{opacity:.4}
+  .treat .zap{color:var(--ink-soft); font-size:16px; padding:4px}
+
+  .days-row{display:flex; gap:10px; overflow-x:auto; padding:4px 2px 10px;
+            scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch}
+  .day-card{min-width:158px; background:var(--bg); border:1px solid var(--card-edge);
+            border-radius:14px; padding:10px 12px; scroll-snap-align:start; flex-shrink:0}
+  .day-card h4{margin:0 0 7px; font-size:11px; font-weight:800; letter-spacing:.1em;
+               text-transform:uppercase; color:var(--ink-soft)}
+  .day-card .di{font-size:12.5px; font-weight:600; padding:2.5px 0; display:flex;
+                gap:7px; align-items:baseline; line-height:1.3; overflow-wrap:anywhere}
+  .day-card .mk{font-weight:800; flex-shrink:0}
+  .day-card .mk.y{color:var(--mint)}
+  .day-card .mk.n{color:var(--card-edge)}
+  .day-card .none{color:var(--ink-soft); font-size:12px}
+  .bk-btn{background:var(--bg); border:1.5px solid var(--card-edge); border-radius:999px;
+          padding:9px 16px; font-size:13px; font-weight:700; flex:1}
+  .log-day{font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+           color:var(--ink-soft); margin:10px 0 4px}
+  .log-item{display:flex; align-items:baseline; gap:10px; padding:7px 0;
+            border-bottom:1px solid var(--card-edge); font-size:13.5px}
+  .log-item time{color:var(--ink-soft); font-size:12px; font-variant-numeric:tabular-nums; min-width:44px}
+  .log-item .k{font-weight:700}
+  .log-empty{color:var(--ink-soft); font-size:13px; text-align:center; padding:20px 0}
+
+  .toast{position:fixed; left:50%; bottom:26px; transform:translate(-50%,80px); z-index:40;
+         background:var(--ink); color:var(--bg); font-size:13.5px; font-weight:700;
+         padding:11px 18px; border-radius:999px; transition:transform .3s cubic-bezier(.34,1.4,.64,1);
+         box-shadow:var(--shadow); max-width:88vw; text-align:center}
+  .toast.show{transform:translate(-50%,0)}
+
+  #confetti{position:fixed; inset:0; pointer-events:none; z-index:50}
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation:none !important; transition:none !important}
+  }
+</style>
+
+<div class="app">
+  <header>
+    <div class="wordmark">Blobby<small id="wmSub">says 3</small></div>
+    <div class="hdr-right">
+      <div class="chip" id="coinChip"><span class="coin"></span><span id="coinText">0</span></div>
+      <button class="chip chip-btn" id="roomBtn">Room</button>
+      <button class="chip chip-btn" id="logBtn">Log</button>
+      <div class="chip" id="streakChip" hidden><span class="star">★</span><span id="streakText"></span></div>
+      <button class="icon-btn" id="soundBtn" aria-label="Toggle sound">
+        <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a3.5 3.5 0 0 0-2-3.15v6.3a3.5 3.5 0 0 0 2-3.15zm-2-7.6v2.1a5.5 5.5 0 0 1 0 11v2.1a7.5 7.5 0 0 0 0-15.2z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="stage">
+    <div class="bubble" id="bubble">3 things. Go.</div>
+    <div class="blobby-wrap bob" id="blobbyWrap">
+      <img class="blobby" id="blobbyImg" src="b-sad.png" alt="Blobby">
+    </div>
+  </section>
+
+  <section class="slots">
+    <div class="slot-label">Today's 3</div>
+    <div id="slotList"></div>
+    <p class="whisper" id="whisper">Tap a slot. Pick a thing. Mark the worst one "heaviest".</p>
+    <button class="more-btn" id="moreBtn" hidden>3 more? If you insist</button>
+  </section>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <h2>Someday list</h2>
+  <p>Everything else lives here. It can wait. Really.</p>
+  <div class="someday" id="somedayList"></div>
+  <div class="addrow">
+    <input id="newTask" type="text" placeholder="Add a thing…" maxlength="80" autocomplete="off">
+    <button id="addBtn">Add</button>
+  </div>
+</div>
+
+<div class="focus" id="focus">
+  <div class="task-title" id="focusTitle"></div>
+  <div class="blobby-wrap bob"><img class="blobby" src="b-determined.png" alt=""></div>
+  <div class="time" id="focusTime">10:00</div>
+  <div class="pool"><i id="poolFill" style="width:100%"></i></div>
+  <div class="durs">
+    <button data-min="2">2 min</button>
+    <button data-min="10" class="on">10 min</button>
+    <button data-min="25">25 min</button>
+  </div>
+  <div class="durs" id="musicRow">
+    <span class="mus-label">Vibes</span>
+    <button data-mus="off" class="on">Quiet</button>
+    <button data-mus="spa">Spa</button>
+    <button data-mus="techno">Maddix</button>
+    <button data-mus="lofi">Lofi</button>
+  </div>
+  <button class="leave" id="leaveBtn">leave — starting still counts</button>
+</div>
+
+<div class="overlay" id="room">
+  <div class="overlay-card">
+    <div class="overlay-head">
+      <h2>Blobby's room</h2>
+      <button id="roomClose" aria-label="Close room">×</button>
+    </div>
+    <div class="scene" id="scene">
+      <div class="blobby-wrap bob"><img class="blobby" src="b-happy.png" alt=""></div>
+    </div>
+    <div class="shop" id="shop"></div>
+    <p class="shop-note">Task = 10 coins. Heaviest = +5. All 3 = +20.
+      Drag stuff to redecorate. Tap an owned thing to return it (full refund).</p>
+    <h3 class="sect-h">Real-life treats</h3>
+    <p class="shop-note" style="text-align:left">Your actual rewards. Bubble tea, a nap, that thing in your cart.
+      Save up, redeem, go get it for real.</p>
+    <div id="treatList"></div>
+    <div class="addrow">
+      <input id="newTreat" type="text" placeholder="e.g. bubble tea" maxlength="50" autocomplete="off">
+      <input id="treatCost" class="cost" type="number" placeholder="cost" min="5" max="9999" inputmode="numeric">
+      <button id="addTreat">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="logWrap">
+  <div class="overlay-card">
+    <div class="overlay-head">
+      <div><h2>The record</h2><div class="sub" id="logToday"></div></div>
+      <button id="logClose" aria-label="Close log">×</button>
+    </div>
+    <h3 class="sect-h">Your days — swipe through</h3>
+    <div class="days-row" id="daysRow"></div>
+    <h3 class="sect-h">Every win, timestamped</h3>
+    <div id="logList"></div>
+    <h3 class="sect-h">Backup</h3>
+    <p class="shop-note" style="text-align:left">The home-screen app and Safari keep separate saves.
+      Copy a backup in one, paste it in the other to move everything across.</p>
+    <div class="addrow">
+      <button class="bk-btn" id="expBtn">Copy backup</button>
+      <button class="bk-btn" id="impBtn">Paste backup</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+(function(){
+  "use strict";
+  var LS = "blobby-just3-v2";
+  var todayStr = new Date().toISOString().slice(0,10);
+  var reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var DEFAULT_SOMEDAY = ["Do my taxes","Reply to that email","Book the dentist",
+    "Clean the kitchen","Start the report","Sort the laundry pile","Call the bank"];
+
+  // -------- tailored "shrink it": tap again for another way --------
+  var GENERIC_SHRINKS = ["Just get everything for it in front of you",
+    "Just do 2 minutes of it","Just do the first tiny step"];
+  var SHRINK_RULES = [
+    [/\b(email|e-mail|reply|inbox|message|text back)\b/i,
+      ["Just read it — no reply yet","Just draft one bad sentence","Just star it and close the tab"]],
+    [/\b(call|phone|ring)\b/i,
+      ["Just find the number","Just write down what you'll say","Just call and ask one question"]],
+    [/\b(dish|dishes|washing up)\b/i,
+      ["Just wash one dish","Just fill the sink with soapy water","Just clear the counter"]],
+    [/\b(laundry|washing)\b/i,
+      ["Just carry it to the machine","Just sort the colours","Just start one load"]],
+    [/\b(clean|tidy|declutter|organise|organize|clear out)\b/i,
+      ["Just clear one small corner","Just pick up 5 things","Just set a 2-minute tidy timer"]],
+    [/\b(write|report|essay|draft|blog|thesis|assignment)\b/i,
+      ["Just write one ugly sentence","Just open the doc and stare","Just jot 3 messy bullets"]],
+    [/\b(book|appointment|dentist|doctor|schedule|renew)\b/i,
+      ["Just open the booking page","Just check their opening hours","Just pick a day that works"]],
+    [/\b(tax|taxes|bill|bills|pay|bank|invoice|insurance|form)\b/i,
+      ["Just open the website and log in","Just find your last statement","Just fill in the first field"]],
+    [/\b(read|study|revise|learn|course|lecture)\b/i,
+      ["Just read one page","Just put the book where you sit","Just read for 5 minutes"]],
+    [/\b(gym|run|exercise|workout|walk|yoga|stretch)\b/i,
+      ["Just put your shoes on","Just do 10 stretches","Just walk around the block once"]],
+    [/\b(buy|order|shop|groceries)\b/i,
+      ["Just put it in the cart","Just compare two options","Just write the list"]],
+    [/\b(fix|repair|mend)\b/i,
+      ["Just look at what's broken","Just watch one how-to video","Just get the tools out"]],
+    [/\b(pack|unpack|move|box)\b/i,
+      ["Just pack one box","Just label three boxes","Just do one drawer"]],
+    [/\b(shower|bath|hair|teeth)\b/i,
+      ["Just walk into the bathroom","Just get the towel out","Just do teeth first"]],
+    [/\b(cook|meal|dinner|lunch|recipe)\b/i,
+      ["Just get the ingredients out","Just pick the recipe","Just chop one thing"]]
+  ];
+  function shrinkOptions(text){
+    for(var i=0;i<SHRINK_RULES.length;i++){
+      if(SHRINK_RULES[i][0].test(text)) return SHRINK_RULES[i][1];
+    }
+    return GENERIC_SHRINKS;
+  }
+
+  var FURNITURE = [
+    {id:"tea",    em:"🫖", name:"Tea set",     price:20, style:"left:8%;  bottom:12px"},
+    {id:"plant",  em:"🪴", name:"Plant friend", price:25, style:"right:8%; bottom:12px"},
+    {id:"lantern",em:"🏮", name:"Lantern",     price:30, style:"left:12%; top:14px"},
+    {id:"art",    em:"🖼️", name:"Wall art",    price:35, style:"right:14%; top:16px"},
+    {id:"teddy",  em:"🧸", name:"Teddy",       price:40, style:"left:22%; bottom:10px"},
+    {id:"sofa",   em:"🛋️", name:"Tiny sofa",   price:50, style:"right:20%; bottom:8px"}
+  ];
+
+  var state = load();
+  function load(){
+    var s = null;
+    try{ s = JSON.parse(localStorage.getItem(LS)); }catch(e){}
+    if(!s || !s.someday){
+      s = { day:null, picks:[], someday:DEFAULT_SOMEDAY.slice(), showedDays:0,
+            lastShow:null, sound:true, hat:null, coins:0, owned:[] };
+    }
+    s.pos = s.pos || {};
+    s.treats = s.treats || [];
+    s.log = s.log || [];
+    s.days = s.days || [];
+    return s;
+  }
+  function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+
+  // ------- day rollover: undone tasks go safely back to Someday -------
+  var freshDay = false;
+  if(state.day !== todayStr){
+    freshDay = state.day !== null;
+    if(state.day && state.picks.length){
+      state.days.push({d:state.day,
+        picks:state.picks.map(function(p){ return {text:p.text, done:!!p.done}; })});
+      if(state.days.length>90) state.days.splice(0, state.days.length-90);
+    }
+    state.picks.forEach(function(p){
+      if(p.done){ state.someday.push(p.text); }      // done things stay available for another day
+      else { state.someday.unshift(p.text); }
+    });
+    state.picks = []; state.day = todayStr; save();
+  }
+
+  // ------------------- audio -------------------
+  var ctx = null;
+  function ac(){ if(!ctx){ ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+    if(ctx.state==="suspended") ctx.resume(); return ctx; }
+  function tone(freq,dur,type,vol,when,glide,dest){
+    if(!state.sound) return;
+    var c=ac(), o=c.createOscillator(), g=c.createGain(), t=c.currentTime+(when||0);
+    o.type=type||"sine"; o.frequency.setValueAtTime(freq,t);
+    if(glide) o.frequency.exponentialRampToValueAtTime(glide,t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||0.15,t+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(dest||c.destination); o.start(t); o.stop(t+dur+0.05);
+  }
+  function pickSnd(){ tone(520,0.08,"triangle",0.1); }
+  function coinSnd(){ tone(988,0.09,"square",0.06); tone(1319,0.16,"square",0.06,0.08); }
+  function unSnd(){ tone(660,0.1,"triangle",0.1,0,440); }
+  function thunk(){ tone(110,0.22,"sine",0.3); tone(523,0.12,"triangle",0.12,0.10);
+                    tone(659,0.12,"triangle",0.12,0.18); tone(784,0.18,"triangle",0.12,0.26); }
+  function fanfare(){ [523,659,784,1047,1319].forEach(function(f,i){
+                    tone(f,0.22,"triangle",0.14,i*0.09); });
+                    tone(1568,0.5,"sine",0.08,0.5); }
+  function buzz(pat){ if(navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} }
+
+  // ------------------- focus music (generative, no external audio) -------------------
+  var nbuf=null;
+  function noiseBuf(){ if(nbuf) return nbuf; var c=ac(), len=c.sampleRate*1;
+    nbuf=c.createBuffer(1,len,c.sampleRate); var d=nbuf.getChannelData(0);
+    for(var i=0;i<len;i++) d[i]=Math.random()*2-1; return nbuf; }
+  function nburst(when,dur,hp,vol){
+    var c=ac(), s=c.createBufferSource(); s.buffer=noiseBuf();
+    var f=c.createBiquadFilter(); f.type="highpass"; f.frequency.value=hp;
+    var g=c.createGain(), t=c.currentTime+when;
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(f); f.connect(g); g.connect(mus.master);
+    s.start(t); s.stop(t+dur+0.02);
+  }
+  function mnote(freq,when,dur,type,vol,glide){
+    var c=ac(), o=c.createOscillator(), g=c.createGain(), t=c.currentTime+when;
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(glide) o.frequency.exponentialRampToValueAtTime(glide,t+dur*0.8);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(vol,t+Math.min(0.05,dur*0.2));
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(mus.master); o.start(t); o.stop(t+dur+0.05);
+  }
+  var mus={mode:"off", timer:null, master:null, nodes:[], step:0, next:0};
+  var LOFI_CHORDS=[[174.61,220,261.63,329.63],[164.81,196,246.94,293.66],
+                   [146.83,174.61,220,261.63],[130.81,164.81,196,246.94]];
+  var PENT=[523.25,587.33,659.25,783.99,880];
+  function musicStop(){
+    if(mus.timer){ clearInterval(mus.timer); mus.timer=null; }
+    mus.nodes.forEach(function(n){ try{ n.stop(); }catch(e){} }); mus.nodes=[];
+    if(mus.master){ var m=mus.master, c=ac();
+      m.gain.setTargetAtTime(0.0001,c.currentTime,0.15);
+      setTimeout(function(){ try{ m.disconnect(); }catch(e){} },500); }
+    mus.master=null; mus.mode="off";
+    document.querySelectorAll("#musicRow button").forEach(function(b){
+      b.classList.toggle("on", b.dataset.mus==="off"); });
+  }
+  function musicStart(mode){
+    musicStop(); if(mode==="off") return;
+    var c=ac();
+    mus.mode=mode; mus.master=c.createGain(); mus.master.gain.value=0.16;
+    mus.master.connect(c.destination);
+    mus.step=0; mus.next=c.currentTime+0.1;
+    if(mode==="spa"){
+      [110,164.81].forEach(function(f){
+        var o=c.createOscillator(), g=c.createGain();
+        o.type="sine"; o.frequency.value=f; g.gain.value=0.05;
+        o.connect(g); g.connect(mus.master); o.start(); mus.nodes.push(o);
+      });
+    }
+    mus.timer=setInterval(schedule,150);
+    document.querySelectorAll("#musicRow button").forEach(function(b){
+      b.classList.toggle("on", b.dataset.mus===mode); });
+  }
+  function schedule(){
+    var c=ac(), stepDur={spa:0.5, techno:0.1087, lofi:0.15}[mus.mode];
+    if(!stepDur) return;
+    while(mus.next < c.currentTime+0.45){
+      var w=mus.next-c.currentTime, s=mus.step;
+      if(mus.mode==="techno"){
+        // Maddix-style: ~138bpm, punchy kick, off-beat saw bass, stabs, 8-bar snare build
+        var s16=s%16, s128=s%128;
+        if(s16%4===0){ mnote(178,w,0.2,"sine",0.55,40); nburst(w,0.02,2500,0.2); }
+        if(s16%4===2){ mnote(49,w,0.14,"sawtooth",0.16); mnote(98,w,0.14,"square",0.06); }
+        if(s16%2===1) nburst(w,0.03,7500,0.09);
+        if(s%32===0){ [196,233.08,293.66].forEach(function(f){
+          mnote(f,w,0.16,"sawtooth",0.07); }); }
+        if(s128>=112) nburst(w,0.06,3000,0.05+(s128-112)*0.008);
+      } else if(mus.mode==="lofi"){
+        if(s%32===0){ var ch=LOFI_CHORDS[(s/32)%4|0];
+          ch.forEach(function(f){ mnote(f,w,4.6,"triangle",0.05); }); }
+        if(s%16===0) mnote(90,w,0.2,"sine",0.2,50);
+        if(s%4===2) nburst(w,0.03,8000,0.05);
+        if(Math.random()<0.15) nburst(w+Math.random()*0.1,0.008,3000,0.02);
+      } else if(mus.mode==="spa"){
+        if(Math.random()<0.35){
+          mnote(PENT[Math.floor(Math.random()*PENT.length)],w,2.4,"sine",0.05);
+        }
+      }
+      mus.next+=stepDur; mus.step++;
+    }
+  }
+
+  // ------------------- character -------------------
+  var blobbyWrap = document.getElementById("blobbyWrap");
+  var blobbyImg = document.getElementById("blobbyImg");
+  var FACES = { happy:"b-happy.png", worried:"b-worried.png",
+    determined:"b-determined.png", surprised:"b-surprised.png", sad:"b-sad.png",
+    excited:"b-excited.png", joy:"b-joy.png" };
+  function setMood(m){ blobbyImg.src = FACES[m] || FACES.sad; }
+
+  // poking gets a random reaction
+  var POKES = [
+    {m:"surprised", s:"Boop?!", a:"squish"},
+    {m:"happy",     s:"Hehe.", a:"wiggle"},
+    {m:"worried",   s:"That tickles.", a:"squish"},
+    {m:"joy",       s:"Again again!", a:"hop"},
+    {m:"determined",s:"I'm WORKING.", a:"wiggle"},
+    {m:"excited",   s:"Hi hi hi!", a:"hop"},
+    {m:"sad",       s:"…five more minutes.", a:"squish"}
+  ];
+  var pokeT=null, lastBubble="3 things. Go.";
+  blobbyWrap.addEventListener("pointerdown", function(){
+    var pk = POKES[Math.floor(Math.random()*POKES.length)];
+    blobbyWrap.classList.remove("squish","wiggle","hop"); void blobbyWrap.offsetWidth;
+    if(!reduceMotion) blobbyWrap.classList.add(pk.a);
+    buzz(15);
+    setMood(pk.m); bubble.textContent=pk.s;
+    if(pokeT) clearTimeout(pokeT);
+    pokeT=setTimeout(function(){
+      blobbyWrap.classList.remove("squish","wiggle","hop");
+      bubble.textContent=lastBubble; render();
+    },1100);
+  });
+  function hop(){
+    if(reduceMotion) return;
+    blobbyWrap.classList.remove("hop"); void blobbyWrap.offsetWidth;
+    blobbyWrap.classList.add("hop");
+  }
+
+  // ------------------- bubble copy (short + sassy) -------------------
+  var bubble = document.getElementById("bubble");
+  function pickLine(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  var LINES = {
+    welcomeBack: ["Oh. Hi. Missed you.","Back! Finally."],
+    start: ["3 things. Go.","Pick 3. Not 17."],
+    picked: ["A plan?! Who are you.","Look at you, planning."],
+    one:  ["One down. Show-off.","One! Already?!"],
+    two:  ["Two?! Easy, legend.","Two down. Unstoppable."],
+    three:["All 3?! Ugh. Amazing.","Done. Go be smug."],
+    frog: ["Ugh. The big one. Fine.","Worst one first. Brave."],
+    shrink:["Tiny task. Zero shame.","Smaller. Smarter."],
+    more: ["MORE? Fine. 3 again.","Again?! Okay okay."],
+    untick:["Un-done. It happens.","Oops? Fixed."]
+  };
+  function say(key){ lastBubble = pickLine(LINES[key]); bubble.textContent = lastBubble; }
+
+  // ------------------- coins -------------------
+  var coinChip=document.getElementById("coinChip"), coinText=document.getElementById("coinText");
+  function renderCoins(){ coinText.textContent = state.coins; }
+  function earn(n){
+    state.coins += n; renderCoins(); coinSnd();
+    coinChip.classList.remove("pop"); void coinChip.offsetWidth; coinChip.classList.add("pop");
+  }
+
+  // ------------------- render -------------------
+  var slotList = document.getElementById("slotList");
+  var streakChip = document.getElementById("streakChip");
+  var streakText = document.getElementById("streakText");
+  var moreBtn = document.getElementById("moreBtn");
+  var pickingSlot = -1;
+
+  function doneCount(){ return state.picks.filter(function(p){return p.done;}).length; }
+
+  function render(){
+    slotList.innerHTML="";
+    slotList.style.display="flex"; slotList.style.flexDirection="column"; slotList.style.gap="10px";
+    for(var i=0;i<3;i++){ slotList.appendChild(renderSlot(i)); }
+    if(state.showedDays>0){
+      streakChip.hidden=false;
+      streakText.textContent = state.showedDays + (state.showedDays===1?" day":" days") + " showed up";
+    }
+    renderCoins();
+    var d=doneCount(), n=state.picks.length;
+    moreBtn.hidden = !(n===3 && d===3);
+    if(d>=3){ setMood("joy"); }
+    else if(d===2){ setMood("excited"); }
+    else if(d===1){ setMood("happy"); }
+    else if(n===3){ setMood("determined"); }
+    else if(n>0){ setMood("surprised"); }
+    else { setMood("sad"); }
+    soundBtn.classList.toggle("off", !state.sound);
+    save();
+  }
+
+  function renderSlot(i){
+    var p = state.picks[i];
+    var el = document.createElement("div");
+    if(!p){
+      el.className="slot empty";
+      var b=document.createElement("button");
+      b.textContent = state.picks.length===0 && i===0 ? "+ Pick your first thing" : "+ Pick a thing";
+      b.addEventListener("click", function(){ pickingSlot=i; openSheet(); });
+      el.appendChild(b);
+      return el;
+    }
+    el.className = "slot" + (p.frog?" frog":"") + (p.done?" done":"");
+    var main=document.createElement("div"); main.className="task-main";
+    var txt=document.createElement("div"); txt.className="task-text";
+    txt.textContent = p.shrunk ? p.shrunk : p.text;
+    main.appendChild(txt);
+    var tags=document.createElement("div"); tags.className="task-tags";
+    if(!p.done){
+      var frogT=document.createElement("button");
+      frogT.className="tag"+(p.frog?" on":"");
+      frogT.textContent = p.frog ? "heaviest — first!" : "mark heaviest";
+      frogT.addEventListener("click", function(){
+        state.picks.forEach(function(q,j){ q.frog = (j===i ? !q.frog : false); });
+        if(state.picks[i].frog) say("frog");
+        pickSnd(); render();
+        if(state.picks[i].frog) setMood("determined");
+      });
+      tags.appendChild(frogT);
+      var shr=document.createElement("button");
+      shr.className="tag"+(p.shrunk?" tiny-on":"");
+      shr.textContent = p.shrunk ? "tiny · another way?" : "shrink it";
+      shr.addEventListener("click", function(){
+        var opts = shrinkOptions(p.text);
+        if(p.shrunk==null){ p.si=0; p.shrunk=opts[0]; say("shrink"); setMoodAfter("worried"); }
+        else {
+          p.si=(p.si||0)+1;
+          if(p.si>=opts.length){ p.shrunk=null; p.si=0; }
+          else { p.shrunk=opts[p.si]; }
+        }
+        pickSnd(); render();
+      });
+      tags.appendChild(shr);
+      var foc=document.createElement("button");
+      foc.className="tag"; foc.textContent="focus with me";
+      foc.addEventListener("click", function(){ openFocus(i); });
+      tags.appendChild(foc);
+    }
+    main.appendChild(tags);
+    el.appendChild(main);
+    if(!p.done){
+      var pb=document.createElement("button"); pb.className="putback";
+      pb.setAttribute("aria-label","Put back on Someday list"); pb.textContent="×";
+      pb.addEventListener("click", function(){
+        state.someday.unshift(p.text); state.picks.splice(i,1); render();
+      });
+      el.appendChild(pb);
+    }
+    var chk=document.createElement("button");
+    chk.className="check"+(p.done?" on":"");
+    chk.setAttribute("aria-label", p.done?"Untick":"Mark done");
+    chk.innerHTML='<svg viewBox="0 0 24 24"><path d="M4 12.5 L9.5 18 L20 6.5"/></svg>';
+    chk.addEventListener("click", function(){ if(p.done){ untick(i); } else { complete(i); } });
+    el.appendChild(chk);
+    return el;
+  }
+
+  var moodAfterT=null;
+  function setMoodAfter(m){
+    if(moodAfterT) clearTimeout(moodAfterT);
+    moodAfterT=setTimeout(function(){ setMood(m); },0);
+  }
+
+  function complete(i){
+    var p=state.picks[i]; p.done=true;
+    if(state.lastShow!==todayStr){ state.lastShow=todayStr; state.showedDays++; }
+    var d=doneCount();
+    buzz([30,40,60]);
+    var reward = 10 + (p.frog?5:0) + (d===3?20:0);
+    p.earned = reward;
+    state.log.push({d:todayStr, t:Date.now(), x:p.text, k:"task"});
+    var rect = slotList.children[i] ? slotList.children[i].getBoundingClientRect() : null;
+    if(d===3){
+      fanfare(); buzz([40,60,40,60,120]);
+      hop(); confetti(window.innerWidth/2, 240, 120);
+      say("three");
+      toast("+"+reward+" coins — day complete bonus!");
+    } else {
+      thunk(); hop();
+      if(rect) confetti(rect.left+rect.width-40, rect.top, 34);
+      say(d===1?"one":"two");
+      toast("+"+reward+" coins"+(p.frog?" (heavy-one bonus!)":""));
+    }
+    earn(reward);
+    render();
+  }
+
+  function untick(i){
+    var p=state.picks[i]; p.done=false;
+    state.coins = Math.max(0, state.coins - (p.earned||10));
+    p.earned = 0;
+    for(var j=state.log.length-1; j>=0; j--){
+      if(state.log[j].k==="task" && state.log[j].x===p.text && state.log[j].d===todayStr){
+        state.log.splice(j,1); break;
+      }
+    }
+    unSnd(); say("untick"); renderCoins(); render();
+  }
+
+  moreBtn.addEventListener("click", function(){
+    state.picks=[]; say("more"); pickSnd(); render();
+  });
+
+  // ------------------- someday sheet -------------------
+  var scrim=document.getElementById("scrim"), sheet=document.getElementById("sheet");
+  var somedayList=document.getElementById("somedayList");
+  var newTask=document.getElementById("newTask"), addBtn=document.getElementById("addBtn");
+  function openSheet(){ renderSomeday(); scrim.classList.add("show"); sheet.classList.add("show"); }
+  function closeSheet(){ scrim.classList.remove("show"); sheet.classList.remove("show"); }
+  scrim.addEventListener("click", closeSheet);
+  function renderSomeday(){
+    somedayList.innerHTML="";
+    if(state.someday.length===0){
+      var e=document.createElement("p");
+      e.textContent="Empty. Add a thing below.";
+      somedayList.appendChild(e); return;
+    }
+    state.someday.forEach(function(t,idx){
+      var row=document.createElement("div"); row.className="someday-item";
+      var b=document.createElement("button"); b.className="pickit"; b.textContent=t;
+      b.addEventListener("click", function(){
+        if(state.picks.length>=3) { closeSheet(); return; }
+        state.someday.splice(idx,1);
+        state.picks.push({text:t, done:false, frog:false, shrunk:null});
+        pickSnd(); buzz(10); closeSheet();
+        if(state.picks.length===3) say("picked");
+        render();
+      });
+      var z=document.createElement("button"); z.className="zap"; z.textContent="×";
+      z.setAttribute("aria-label","Remove from Someday list");
+      z.addEventListener("click", function(){ state.someday.splice(idx,1); save(); renderSomeday(); });
+      row.appendChild(b); row.appendChild(z);
+      somedayList.appendChild(row);
+    });
+  }
+  function addTask(){
+    var v=newTask.value.trim(); if(!v) return;
+    state.someday.unshift(v); newTask.value=""; save(); renderSomeday();
+  }
+  addBtn.addEventListener("click", addTask);
+  newTask.addEventListener("keydown", function(e){ if(e.key==="Enter") addTask(); });
+
+  // ------------------- focus mode -------------------
+  var focusEl=document.getElementById("focus"), focusTitle=document.getElementById("focusTitle");
+  var focusTime=document.getElementById("focusTime"), poolFill=document.getElementById("poolFill");
+  var leaveBtn=document.getElementById("leaveBtn");
+  var focusIdx=-1, focusTotal=600, focusLeft=600, focusTimer=null;
+
+  function fmt(s){ var m=Math.floor(s/60), r=s%60; return m+":"+(r<10?"0":"")+r; }
+  function openFocus(i){
+    focusIdx=i;
+    var p=state.picks[i];
+    focusTitle.textContent = p.shrunk ? p.shrunk : p.text;
+    setDur(10);
+    focusEl.classList.add("show");
+  }
+  function closeFocus(){
+    focusEl.classList.remove("show");
+    if(focusTimer){ clearInterval(focusTimer); focusTimer=null; }
+    musicStop();
+  }
+  function setDur(min){
+    focusTotal=min*60; focusLeft=focusTotal;
+    focusTime.textContent=fmt(focusLeft); poolFill.style.width="100%";
+    document.querySelectorAll(".durs button[data-min]").forEach(function(b){
+      b.classList.toggle("on", +b.dataset.min===min);
+    });
+    if(focusTimer) clearInterval(focusTimer);
+    focusTimer=setInterval(function(){
+      focusLeft--;
+      focusTime.textContent=fmt(Math.max(0,focusLeft));
+      poolFill.style.width=(100*focusLeft/focusTotal)+"%";
+      if(focusLeft<=0){
+        clearInterval(focusTimer); focusTimer=null;
+        fanfare(); buzz([50,80,50]);
+        closeFocus();
+        lastBubble="A whole focus. Who ARE you."; bubble.textContent=lastBubble;
+        setMood("excited");
+      }
+    },1000);
+  }
+  document.querySelectorAll(".durs button[data-min]").forEach(function(b){
+    b.addEventListener("click", function(){ pickSnd(); setDur(+b.dataset.min); });
+  });
+  document.querySelectorAll("#musicRow button").forEach(function(b){
+    b.addEventListener("click", function(){
+      pickSnd();
+      if(b.dataset.mus==="off"){ musicStop(); } else { musicStart(b.dataset.mus); }
+    });
+  });
+  leaveBtn.addEventListener("click", function(){
+    closeFocus();
+    lastBubble="Fine, go. Starting still counted."; bubble.textContent=lastBubble;
+    setMood("sad");
+  });
+
+  // ------------------- room, shop & real-life treats -------------------
+  var room=document.getElementById("room"), roomBtn=document.getElementById("roomBtn");
+  var roomClose=document.getElementById("roomClose"), scene=document.getElementById("scene");
+  var shop=document.getElementById("shop"), treatList=document.getElementById("treatList");
+  var newTreat=document.getElementById("newTreat"), treatCost=document.getElementById("treatCost");
+  var addTreatBtn=document.getElementById("addTreat");
+
+  function makeDraggable(span, f){
+    var dragging=false, l=0, t=0;
+    span.addEventListener("pointerdown", function(ev){
+      dragging=true; span.setPointerCapture(ev.pointerId); ev.preventDefault();
+    });
+    span.addEventListener("pointermove", function(ev){
+      if(!dragging) return;
+      var r = scene.getBoundingClientRect();
+      l = Math.min(88, Math.max(0, (ev.clientX-r.left)/r.width*100 - 5));
+      t = Math.min(80, Math.max(0, (ev.clientY-r.top)/r.height*100 - 8));
+      span.style.left=l+"%"; span.style.top=t+"%";
+      span.style.right="auto"; span.style.bottom="auto";
+    });
+    function drop(){ if(!dragging) return; dragging=false;
+      state.pos[f.id]={l:l,t:t}; save(); }
+    span.addEventListener("pointerup", drop);
+    span.addEventListener("pointercancel", drop);
+  }
+
+  function renderRoom(){
+    scene.querySelectorAll(".furn").forEach(function(el){ el.remove(); });
+    FURNITURE.forEach(function(f){
+      if(state.owned.indexOf(f.id)===-1) return;
+      var s=document.createElement("span"); s.className="furn"; s.textContent=f.em;
+      if(state.pos[f.id]){
+        s.style.left=state.pos[f.id].l+"%"; s.style.top=state.pos[f.id].t+"%";
+      } else {
+        s.setAttribute("style", f.style);
+      }
+      makeDraggable(s, f);
+      scene.appendChild(s);
+    });
+    shop.innerHTML="";
+    FURNITURE.forEach(function(f){
+      var owned = state.owned.indexOf(f.id)!==-1;
+      var b=document.createElement("button");
+      b.className="shop-item"+(owned?" owned":"");
+      b.innerHTML='<span class="em">'+f.em+'</span><span><span class="nm">'+f.name+
+        '</span><span class="pr">'+(owned?'owned — tap to return':'<span class="coin"></span>'+f.price)+'</span></span>';
+      b.addEventListener("click", function(){
+        if(owned){
+          state.owned.splice(state.owned.indexOf(f.id),1);
+          delete state.pos[f.id];
+          state.coins += f.price;
+          unSnd(); save(); renderCoins(); renderRoom();
+          toast("Returned. "+f.price+" coins back.");
+        } else if(state.coins < f.price){
+          toast("Not enough coins. Go do a thing.");
+        } else {
+          state.coins -= f.price; state.owned.push(f.id);
+          coinSnd(); buzz(20); save(); renderCoins(); renderRoom();
+          toast(f.name+" is in! Blobby approves.");
+        }
+      });
+      shop.appendChild(b);
+    });
+    renderTreats();
+  }
+  function renderTreats(){
+    treatList.innerHTML="";
+    treatList.style.display="flex"; treatList.style.flexDirection="column"; treatList.style.gap="8px";
+    if(state.treats.length===0){
+      var e=document.createElement("p"); e.className="shop-note";
+      e.textContent="Nothing yet. What do you actually want?";
+      treatList.appendChild(e); return;
+    }
+    state.treats.forEach(function(tr, idx){
+      var row=document.createElement("div"); row.className="treat";
+      var nm=document.createElement("span"); nm.className="nm"; nm.textContent=tr.name;
+      var pr=document.createElement("span"); pr.className="pr";
+      pr.innerHTML='<span class="coin"></span>'+tr.price;
+      var rd=document.createElement("button"); rd.className="redeem"; rd.textContent="Redeem";
+      rd.disabled = state.coins < tr.price;
+      rd.addEventListener("click", function(){
+        state.coins -= tr.price;
+        state.log.push({d:todayStr, t:Date.now(), x:tr.name, k:"treat"});
+        coinSnd(); buzz([30,50]);
+        save(); renderCoins(); renderTreats();
+        toast("Redeemed: "+tr.name+". Go get it. For real.");
+      });
+      var z=document.createElement("button"); z.className="zap"; z.textContent="×";
+      z.setAttribute("aria-label","Remove treat");
+      z.addEventListener("click", function(){ state.treats.splice(idx,1); save(); renderTreats(); });
+      row.appendChild(nm); row.appendChild(pr); row.appendChild(rd); row.appendChild(z);
+      treatList.appendChild(row);
+    });
+  }
+  addTreatBtn.addEventListener("click", function(){
+    var v=newTreat.value.trim(), c=parseInt(treatCost.value,10);
+    if(!v || !c || c<1){ toast("Name it and price it."); return; }
+    state.treats.push({name:v, price:c});
+    newTreat.value=""; treatCost.value="";
+    save(); renderTreats();
+  });
+  roomBtn.addEventListener("click", function(){ renderRoom(); room.classList.add("show"); });
+  roomClose.addEventListener("click", function(){ room.classList.remove("show"); });
+  room.addEventListener("click", function(e){ if(e.target===room) room.classList.remove("show"); });
+
+  // ------------------- the record (history log) -------------------
+  var logWrap=document.getElementById("logWrap"), logBtn=document.getElementById("logBtn");
+  var logClose=document.getElementById("logClose"), logList=document.getElementById("logList");
+  var logToday=document.getElementById("logToday");
+  function dayLabel(d){
+    if(d===todayStr) return "Today";
+    var y=new Date(); y.setDate(y.getDate()-1);
+    if(d===y.toISOString().slice(0,10)) return "Yesterday";
+    return new Date(d+"T12:00:00").toLocaleDateString(undefined,
+      {weekday:"short", day:"numeric", month:"short"});
+  }
+  var daysRow=document.getElementById("daysRow");
+  function dayCard(d, picks){
+    var card=document.createElement("div"); card.className="day-card";
+    var h=document.createElement("h4"); h.textContent=dayLabel(d);
+    card.appendChild(h);
+    if(!picks || picks.length===0){
+      var e=document.createElement("div"); e.className="none"; e.textContent="—";
+      card.appendChild(e); return card;
+    }
+    picks.forEach(function(p){
+      var row=document.createElement("div"); row.className="di";
+      var mk=document.createElement("span"); mk.className="mk "+(p.done?"y":"n");
+      mk.textContent=p.done?"✓":"○";
+      var tx=document.createElement("span"); tx.textContent=p.text;
+      row.appendChild(mk); row.appendChild(tx); card.appendChild(row);
+    });
+    return card;
+  }
+  function renderDays(){
+    daysRow.innerHTML="";
+    daysRow.appendChild(dayCard(todayStr, state.picks.map(function(p){
+      return {text:p.text, done:!!p.done}; })));
+    for(var i=state.days.length-1; i>=0; i--){
+      daysRow.appendChild(dayCard(state.days[i].d, state.days[i].picks));
+    }
+  }
+  function renderLog(){
+    logToday.textContent = new Date().toLocaleDateString(undefined,
+      {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+    renderDays();
+    logList.innerHTML="";
+    if(state.log.length===0){
+      var e=document.createElement("p"); e.className="log-empty";
+      e.textContent="Nothing yet. Today's a good day to change that.";
+      logList.appendChild(e); return;
+    }
+    var lastDay=null;
+    for(var i=state.log.length-1; i>=0; i--){
+      var en=state.log[i];
+      if(en.d!==lastDay){
+        lastDay=en.d;
+        var h=document.createElement("div"); h.className="log-day";
+        h.textContent=dayLabel(en.d);
+        logList.appendChild(h);
+      }
+      var row=document.createElement("div"); row.className="log-item";
+      var tm=document.createElement("time");
+      tm.textContent=new Date(en.t).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+      var tx=document.createElement("span");
+      if(en.k==="treat"){ tx.innerHTML='<span class="k">Treated yourself:</span> '+esc(en.x); }
+      else { tx.innerHTML='<span class="k">Did:</span> '+esc(en.x); }
+      row.appendChild(tm); row.appendChild(tx);
+      logList.appendChild(row);
+    }
+  }
+  function esc(s){ var d=document.createElement("span"); d.textContent=s; return d.innerHTML; }
+  logBtn.addEventListener("click", function(){ renderLog(); logWrap.classList.add("show"); });
+  document.getElementById("expBtn").addEventListener("click", function(){
+    var data = JSON.stringify(state);
+    function fallback(){ window.prompt("Copy this backup text:", data); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(data).then(function(){
+        toast("Backup copied. Paste it in the other version.");
+      }, fallback);
+    } else { fallback(); }
+  });
+  document.getElementById("impBtn").addEventListener("click", function(){
+    var v = window.prompt("Paste your backup here:");
+    if(!v) return;
+    try{
+      var s = JSON.parse(v);
+      if(!s || !s.someday) throw new Error("bad");
+      localStorage.setItem(LS, JSON.stringify(s));
+      location.reload();
+    }catch(e){ toast("That didn't look like a Blobby backup."); }
+  });
+  logClose.addEventListener("click", function(){ logWrap.classList.remove("show"); });
+  logWrap.addEventListener("click", function(e){ if(e.target===logWrap) logWrap.classList.remove("show"); });
+
+  // ------------------- sound toggle -------------------
+  var soundBtn=document.getElementById("soundBtn");
+  soundBtn.addEventListener("click", function(){
+    state.sound=!state.sound; if(state.sound){ pickSnd(); }
+    soundBtn.classList.toggle("off",!state.sound); save();
+  });
+
+  // ------------------- toast -------------------
+  var toastEl=document.getElementById("toast"), toastT=null;
+  function toast(msg){
+    toastEl.textContent=msg; toastEl.classList.add("show");
+    if(toastT) clearTimeout(toastT);
+    toastT=setTimeout(function(){ toastEl.classList.remove("show"); },2600);
+  }
+
+  // ------------------- confetti -------------------
+  var cvs=document.getElementById("confetti"), cx2=cvs.getContext("2d"), parts=[];
+  function sizeCanvas(){ cvs.width=innerWidth*devicePixelRatio; cvs.height=innerHeight*devicePixelRatio;
+    cvs.style.width=innerWidth+"px"; cvs.style.height=innerHeight+"px";
+    cx2.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+  sizeCanvas(); addEventListener("resize", sizeCanvas);
+  var COLORS=["#F26D5B","#F5A623","#3FAE84","#F2939F","#8FB8DE"];
+  function confetti(x,y,n){
+    if(reduceMotion) return;
+    for(var i=0;i<n;i++){
+      parts.push({x:x,y:y,vx:(Math.random()-0.5)*9,vy:-Math.random()*9-3,
+        g:0.28+Math.random()*0.1, r:3+Math.random()*4, a:1,
+        rot:Math.random()*Math.PI, vr:(Math.random()-0.5)*0.3,
+        c:COLORS[i%COLORS.length]});
+    }
+    if(!confettiRunning){ confettiRunning=true; requestAnimationFrame(tick); }
+  }
+  var confettiRunning=false;
+  function tick(){
+    cx2.clearRect(0,0,innerWidth,innerHeight);
+    parts=parts.filter(function(p){ return p.a>0.02 && p.y<innerHeight+20; });
+    parts.forEach(function(p){
+      p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=0.99; p.rot+=p.vr; p.a-=0.006;
+      cx2.save(); cx2.translate(p.x,p.y); cx2.rotate(p.rot); cx2.globalAlpha=Math.max(0,p.a);
+      cx2.fillStyle=p.c; cx2.fillRect(-p.r,-p.r/2,p.r*2,p.r); cx2.restore();
+    });
+    if(parts.length){ requestAnimationFrame(tick); }
+    else{ confettiRunning=false; cx2.clearRect(0,0,innerWidth,innerHeight); }
+  }
+
+  // ------------------- boot -------------------
+  document.getElementById("wmSub").textContent = "says 3 · " +
+    new Date().toLocaleDateString(undefined, {weekday:"short", day:"numeric", month:"short"});
+  if(freshDay){ say("welcomeBack"); }
+  else if(state.picks.length===3){ say(doneCount()===3?"three":"picked"); }
+  else { say("start"); }
+  render();
+  if(freshDay) setMood("sad");
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
