@@ -189,10 +189,16 @@
   .overlay-head h2{margin:0; font-size:16px; font-weight:800}
   .overlay-head .sub{font-size:11.5px; color:var(--ink-soft); font-weight:600; margin-top:2px}
   .overlay-head button{font-size:22px; color:var(--ink-soft); padding:2px 8px; line-height:1}
-  .scene{position:relative; height:230px; border-radius:18px; overflow:hidden;
+  .scene{position:relative; aspect-ratio:1/1; border-radius:18px; overflow:hidden;
          border:1px solid var(--card-edge); touch-action:none;
-         background:linear-gradient(180deg, var(--wall) 0%, var(--wall) 64%, var(--floor) 64%, var(--floor) 100%)}
-  .scene .blobby-wrap{width:110px; position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:1}
+         background-size:cover; background-position:center}
+  .scene.in{background-image:url("house-in.jpg")}
+  .scene.out{background-image:url("house-out.jpg")}
+  .scene-blobby{width:24%}
+  .scene-blobby img{width:100%; display:block; filter:drop-shadow(0 4px 6px rgba(0,0,0,.18)); pointer-events:none}
+  .treat-furn img{width:46px; height:46px; object-fit:cover; border-radius:12px;
+         border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,.2); display:block; pointer-events:none}
+  .treat img.th{width:34px; height:34px; border-radius:9px; object-fit:cover}
   .furn{position:absolute; font-size:34px; line-height:1; z-index:2; cursor:grab;
         touch-action:none; user-select:none; -webkit-user-select:none;
         filter:drop-shadow(0 3px 4px rgba(0,0,0,.12))}
@@ -256,7 +262,7 @@
 
 <div class="app">
   <header>
-    <div class="wordmark">Blobby<small id="wmSub">says 3</small></div>
+    <div class="wordmark">Blobby<small id="wmSub">Says 3</small></div>
     <div class="hdr-right">
       <div class="chip" id="coinChip"><span class="coin"></span><span id="coinText">0</span></div>
       <button class="chip chip-btn" id="roomBtn">Room</button>
@@ -300,6 +306,10 @@
   <div class="time" id="focusTime">10:00</div>
   <div class="pool"><i id="poolFill" style="width:100%"></i></div>
   <div class="durs">
+    <button id="pauseBtn">Pause</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+  <div class="durs">
     <button data-min="2">2 min</button>
     <button data-min="10" class="on">10 min</button>
     <button data-min="25">25 min</button>
@@ -308,7 +318,6 @@
     <span class="mus-label">Vibes</span>
     <button data-mus="off" class="on">Quiet</button>
     <button data-mus="spa">Spa</button>
-    <button data-mus="techno">Maddix</button>
     <button data-mus="lofi">Lofi</button>
   </div>
   <button class="leave" id="leaveBtn">leave — starting still counts</button>
@@ -320,9 +329,11 @@
       <h2>Blobby's room</h2>
       <button id="roomClose" aria-label="Close room">×</button>
     </div>
-    <div class="scene" id="scene">
-      <div class="blobby-wrap bob"><img class="blobby" src="b-happy.png" alt=""></div>
+    <div class="durs" id="sceneTabs">
+      <button data-scn="in" class="on">Inside</button>
+      <button data-scn="out">Outside</button>
     </div>
+    <div class="scene in" id="scene"></div>
     <div class="shop" id="shop"></div>
     <p class="shop-note">Task = 10 coins. Heaviest = +5. All 3 = +20.
       Drag stuff to redecorate. Tap an owned thing to return it (full refund).</p>
@@ -333,6 +344,8 @@
     <div class="addrow">
       <input id="newTreat" type="text" placeholder="e.g. bubble tea" maxlength="50" autocomplete="off">
       <input id="treatCost" class="cost" type="number" placeholder="cost" min="5" max="9999" inputmode="numeric">
+      <button class="bk-btn" id="photoBtn" style="flex:0 0 auto">Photo</button>
+      <input type="file" id="treatPhoto" accept="image/*" hidden>
       <button id="addTreat">Add</button>
     </div>
   </div>
@@ -434,6 +447,7 @@
     s.treats = s.treats || [];
     s.log = s.log || [];
     s.days = s.days || [];
+    s.treats.forEach(function(t,i){ if(!t.id) t.id="t"+i; });
     return s;
   }
   function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
@@ -478,6 +492,26 @@
                     tone(1568,0.5,"sine",0.08,0.5); }
   function buzz(pat){ if(navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} }
 
+  // Blobby's real voice (recorded): s1/s2 = coos (pokes), s3 = excited (task done).
+  // s3 is pitched up per completed task, Duolingo-style.
+  var SFXFILES={s1:"s1.m4a", s2:"s2.mp3", s3:"s3.m4a"}, SFX={};
+  function loadSfx(n){
+    if(SFX[n]!==undefined) return;
+    SFX[n]=null;
+    fetch(SFXFILES[n]).then(function(r){ return r.arrayBuffer(); })
+      .then(function(b){ return ac().decodeAudioData(b); })
+      .then(function(buf){ SFX[n]=buf; })
+      .catch(function(){ delete SFX[n]; });
+  }
+  function playSfx(n, rate, vol){
+    if(!state.sound) return;
+    var buf=SFX[n];
+    if(!buf){ loadSfx(n); return; }
+    var c=ac(), s=c.createBufferSource(), g=c.createGain();
+    s.buffer=buf; s.playbackRate.value=rate||1;
+    g.gain.value=vol||0.9; s.connect(g); g.connect(c.destination); s.start();
+  }
+
   // ------------------- focus music (generative, no external audio) -------------------
   var nbuf=null;
   function noiseBuf(){ if(nbuf) return nbuf; var c=ac(), len=c.sampleRate*1;
@@ -511,7 +545,11 @@
       m.gain.setTargetAtTime(0.0001,c.currentTime,0.15);
       setTimeout(function(){ try{ m.disconnect(); }catch(e){} },500); }
     mus.master=null; mus.mode="off";
-    document.querySelectorAll("#musicRow button").forEach(function(b){
+    pauseBtn.addEventListener("click", function(){
+    focusPaused=!focusPaused; pauseBtn.textContent=focusPaused?"Resume":"Pause"; pickSnd();
+  });
+  resetBtn.addEventListener("click", function(){ setDur(focusMin); pickSnd(); });
+  document.querySelectorAll("#musicRow button").forEach(function(b){
       b.classList.toggle("on", b.dataset.mus==="off"); });
   }
   function musicStart(mode){
@@ -532,20 +570,11 @@
       b.classList.toggle("on", b.dataset.mus===mode); });
   }
   function schedule(){
-    var c=ac(), stepDur={spa:0.5, techno:0.1087, lofi:0.15}[mus.mode];
+    var c=ac(), stepDur={spa:0.5, lofi:0.15}[mus.mode];
     if(!stepDur) return;
     while(mus.next < c.currentTime+0.45){
       var w=mus.next-c.currentTime, s=mus.step;
-      if(mus.mode==="techno"){
-        // Maddix-style: ~138bpm, punchy kick, off-beat saw bass, stabs, 8-bar snare build
-        var s16=s%16, s128=s%128;
-        if(s16%4===0){ mnote(178,w,0.2,"sine",0.55,40); nburst(w,0.02,2500,0.2); }
-        if(s16%4===2){ mnote(49,w,0.14,"sawtooth",0.16); mnote(98,w,0.14,"square",0.06); }
-        if(s16%2===1) nburst(w,0.03,7500,0.09);
-        if(s%32===0){ [196,233.08,293.66].forEach(function(f){
-          mnote(f,w,0.16,"sawtooth",0.07); }); }
-        if(s128>=112) nburst(w,0.06,3000,0.05+(s128-112)*0.008);
-      } else if(mus.mode==="lofi"){
+      if(mus.mode==="lofi"){
         if(s%32===0){ var ch=LOFI_CHORDS[(s/32)%4|0];
           ch.forEach(function(f){ mnote(f,w,4.6,"triangle",0.05); }); }
         if(s%16===0) mnote(90,w,0.2,"sine",0.2,50);
@@ -583,7 +612,7 @@
     var pk = POKES[Math.floor(Math.random()*POKES.length)];
     blobbyWrap.classList.remove("squish","wiggle","hop"); void blobbyWrap.offsetWidth;
     if(!reduceMotion) blobbyWrap.classList.add(pk.a);
-    buzz(15);
+    buzz(15); playSfx(Math.random()<0.5?"s1":"s2");
     setMood(pk.m); bubble.textContent=pk.s;
     if(pokeT) clearTimeout(pokeT);
     pokeT=setTimeout(function(){
@@ -734,12 +763,12 @@
     state.log.push({d:todayStr, t:Date.now(), x:p.text, k:"task"});
     var rect = slotList.children[i] ? slotList.children[i].getBoundingClientRect() : null;
     if(d===3){
-      fanfare(); buzz([40,60,40,60,120]);
+      playSfx("s3", 1.26); setTimeout(fanfare, 400); buzz([40,60,40,60,120]);
       hop(); confetti(window.innerWidth/2, 240, 120);
       say("three");
       toast("+"+reward+" coins — day complete bonus!");
     } else {
-      thunk(); hop();
+      playSfx("s3", d===1?1:1.12); hop();
       if(rect) confetti(rect.left+rect.width-40, rect.top, 34);
       say(d===1?"one":"two");
       toast("+"+reward+" coins"+(p.frog?" (heavy-one bonus!)":""));
@@ -808,6 +837,8 @@
   var focusTime=document.getElementById("focusTime"), poolFill=document.getElementById("poolFill");
   var leaveBtn=document.getElementById("leaveBtn");
   var focusIdx=-1, focusTotal=600, focusLeft=600, focusTimer=null;
+  var focusPaused=false, focusMin=10;
+  var pauseBtn=document.getElementById("pauseBtn"), resetBtn=document.getElementById("resetBtn");
 
   function fmt(s){ var m=Math.floor(s/60), r=s%60; return m+":"+(r<10?"0":"")+r; }
   function openFocus(i){
@@ -823,6 +854,7 @@
     musicStop();
   }
   function setDur(min){
+    focusMin=min; focusPaused=false; pauseBtn.textContent="Pause";
     focusTotal=min*60; focusLeft=focusTotal;
     focusTime.textContent=fmt(focusLeft); poolFill.style.width="100%";
     document.querySelectorAll(".durs button[data-min]").forEach(function(b){
@@ -830,6 +862,7 @@
     });
     if(focusTimer) clearInterval(focusTimer);
     focusTimer=setInterval(function(){
+      if(focusPaused) return;
       focusLeft--;
       focusTime.textContent=fmt(Math.max(0,focusLeft));
       poolFill.style.width=(100*focusLeft/focusTotal)+"%";
@@ -863,39 +896,74 @@
   var shop=document.getElementById("shop"), treatList=document.getElementById("treatList");
   var newTreat=document.getElementById("newTreat"), treatCost=document.getElementById("treatCost");
   var addTreatBtn=document.getElementById("addTreat");
+  var photoBtn=document.getElementById("photoBtn"), treatPhoto=document.getElementById("treatPhoto");
+  var curScn="in", pendingImg=null;
 
-  function makeDraggable(span, f){
-    var dragging=false, l=0, t=0;
-    span.addEventListener("pointerdown", function(ev){
-      dragging=true; span.setPointerCapture(ev.pointerId); ev.preventDefault();
+  function posKey(id){ return id+"@"+curScn; }
+  function makeDraggable(el, key){
+    var dragging=false, l=null, t=null;
+    el.addEventListener("pointerdown", function(ev){
+      dragging=true; el.setPointerCapture(ev.pointerId); ev.preventDefault(); ev.stopPropagation();
     });
-    span.addEventListener("pointermove", function(ev){
+    el.addEventListener("pointermove", function(ev){
       if(!dragging) return;
       var r = scene.getBoundingClientRect();
-      l = Math.min(88, Math.max(0, (ev.clientX-r.left)/r.width*100 - 5));
-      t = Math.min(80, Math.max(0, (ev.clientY-r.top)/r.height*100 - 8));
-      span.style.left=l+"%"; span.style.top=t+"%";
-      span.style.right="auto"; span.style.bottom="auto";
+      l = Math.min(90, Math.max(0, (ev.clientX-r.left)/r.width*100 - 5));
+      t = Math.min(86, Math.max(0, (ev.clientY-r.top)/r.height*100 - 6));
+      el.style.left=l+"%"; el.style.top=t+"%";
+      el.style.right="auto"; el.style.bottom="auto";
     });
     function drop(){ if(!dragging) return; dragging=false;
-      state.pos[f.id]={l:l,t:t}; save(); }
-    span.addEventListener("pointerup", drop);
-    span.addEventListener("pointercancel", drop);
+      if(l!==null){ state.pos[key]={l:l,t:t}; save(); } }
+    el.addEventListener("pointerup", drop);
+    el.addEventListener("pointercancel", drop);
   }
-
-  function renderRoom(){
-    scene.querySelectorAll(".furn").forEach(function(el){ el.remove(); });
+  function place(el, key, defStyle){
+    if(state.pos[key]){
+      el.style.position="absolute";
+      el.style.left=state.pos[key].l+"%"; el.style.top=state.pos[key].t+"%";
+    } else {
+      el.setAttribute("style", "position:absolute;"+defStyle);
+    }
+  }
+  function renderScene(){
+    scene.className = "scene "+curScn;
+    scene.innerHTML="";
+    var bw=document.createElement("div"); bw.className="furn scene-blobby";
+    var bi=document.createElement("img");
+    bi.src = curScn==="in" ? "b-happy.png" : "b-joy.png"; bi.alt="Blobby";
+    bw.appendChild(bi);
+    place(bw, posKey("blobby"), curScn==="in" ? "left:40%; top:56%" : "left:20%; top:58%");
+    makeDraggable(bw, posKey("blobby"));
+    scene.appendChild(bw);
+    if(curScn!=="in") return;
     FURNITURE.forEach(function(f){
       if(state.owned.indexOf(f.id)===-1) return;
       var s=document.createElement("span"); s.className="furn"; s.textContent=f.em;
-      if(state.pos[f.id]){
-        s.style.left=state.pos[f.id].l+"%"; s.style.top=state.pos[f.id].t+"%";
-      } else {
-        s.setAttribute("style", f.style);
-      }
-      makeDraggable(s, f);
+      place(s, posKey(f.id), f.style);
+      makeDraggable(s, posKey(f.id));
       scene.appendChild(s);
     });
+    state.treats.forEach(function(tr, i){
+      var s=document.createElement("span"); s.className="furn treat-furn";
+      if(tr.img){ var im=document.createElement("img"); im.src=tr.img; im.alt=tr.name; s.appendChild(im); }
+      else { s.textContent="🎁"; }
+      var lx=(12+i*18)%72;
+      place(s, posKey(tr.id), "left:"+lx+"%; top:10%");
+      makeDraggable(s, posKey(tr.id));
+      scene.appendChild(s);
+    });
+  }
+  document.querySelectorAll("#sceneTabs button").forEach(function(b){
+    b.addEventListener("click", function(){
+      curScn=b.dataset.scn;
+      document.querySelectorAll("#sceneTabs button").forEach(function(x){
+        x.classList.toggle("on", x===b); });
+      pickSnd(); renderScene();
+    });
+  });
+  function renderRoom(){
+    renderScene();
     shop.innerHTML="";
     FURNITURE.forEach(function(f){
       var owned = state.owned.indexOf(f.id)!==-1;
@@ -906,7 +974,7 @@
       b.addEventListener("click", function(){
         if(owned){
           state.owned.splice(state.owned.indexOf(f.id),1);
-          delete state.pos[f.id];
+          delete state.pos[f.id+"@in"]; delete state.pos[f.id+"@out"];
           state.coins += f.price;
           unSnd(); save(); renderCoins(); renderRoom();
           toast("Returned. "+f.price+" coins back.");
@@ -932,6 +1000,7 @@
     }
     state.treats.forEach(function(tr, idx){
       var row=document.createElement("div"); row.className="treat";
+      if(tr.img){ var th=document.createElement("img"); th.className="th"; th.src=tr.img; th.alt=""; row.appendChild(th); }
       var nm=document.createElement("span"); nm.className="nm"; nm.textContent=tr.name;
       var pr=document.createElement("span"); pr.className="pr";
       pr.innerHTML='<span class="coin"></span>'+tr.price;
@@ -940,23 +1009,42 @@
       rd.addEventListener("click", function(){
         state.coins -= tr.price;
         state.log.push({d:todayStr, t:Date.now(), x:tr.name, k:"treat"});
-        coinSnd(); buzz([30,50]);
+        coinSnd(); playSfx("s3", 1.26); buzz([30,50]);
         save(); renderCoins(); renderTreats();
         toast("Redeemed: "+tr.name+". Go get it. For real.");
       });
       var z=document.createElement("button"); z.className="zap"; z.textContent="×";
       z.setAttribute("aria-label","Remove treat");
-      z.addEventListener("click", function(){ state.treats.splice(idx,1); save(); renderTreats(); });
+      z.addEventListener("click", function(){
+        delete state.pos[tr.id+"@in"]; delete state.pos[tr.id+"@out"];
+        state.treats.splice(idx,1); save(); renderRoom();
+      });
       row.appendChild(nm); row.appendChild(pr); row.appendChild(rd); row.appendChild(z);
       treatList.appendChild(row);
     });
   }
+  photoBtn.addEventListener("click", function(){ treatPhoto.click(); });
+  treatPhoto.addEventListener("change", function(){
+    var f = treatPhoto.files && treatPhoto.files[0]; if(!f) return;
+    var img = new Image();
+    img.onload = function(){
+      var m=140, sc=Math.min(1, m/Math.max(img.width, img.height));
+      var cv=document.createElement("canvas");
+      cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      pendingImg = cv.toDataURL("image/jpeg", 0.8);
+      photoBtn.textContent="Photo ✓";
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(f);
+  });
   addTreatBtn.addEventListener("click", function(){
     var v=newTreat.value.trim(), c=parseInt(treatCost.value,10);
     if(!v || !c || c<1){ toast("Name it and price it."); return; }
-    state.treats.push({name:v, price:c});
+    state.treats.push({id:"t"+Date.now(), name:v, price:c, img:pendingImg});
     newTreat.value=""; treatCost.value="";
-    save(); renderTreats();
+    pendingImg=null; photoBtn.textContent="Photo"; treatPhoto.value="";
+    save(); renderRoom();
   });
   roomBtn.addEventListener("click", function(){ renderRoom(); room.classList.add("show"); });
   roomClose.addEventListener("click", function(){ room.classList.remove("show"); });
@@ -1021,10 +1109,25 @@
       var row=document.createElement("div"); row.className="log-item";
       var tm=document.createElement("time");
       tm.textContent=new Date(en.t).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
-      var tx=document.createElement("span");
+      var tx=document.createElement("span"); tx.style.flex="1";
       if(en.k==="treat"){ tx.innerHTML='<span class="k">Treated yourself:</span> '+esc(en.x); }
       else { tx.innerHTML='<span class="k">Did:</span> '+esc(en.x); }
       row.appendChild(tm); row.appendChild(tx);
+      (function(index){
+        var ed=document.createElement("button"); ed.className="zap";
+        ed.textContent="edit"; ed.style.fontSize="11px";
+        ed.addEventListener("click", function(){
+          var nv=window.prompt("Edit entry:", state.log[index].x);
+          if(nv===null) return; nv=nv.trim(); if(!nv) return;
+          state.log[index].x=nv; save(); renderLog();
+        });
+        var del=document.createElement("button"); del.className="zap"; del.textContent="×";
+        del.setAttribute("aria-label","Delete entry");
+        del.addEventListener("click", function(){
+          state.log.splice(index,1); save(); renderLog();
+        });
+        row.appendChild(ed); row.appendChild(del);
+      })(i);
       logList.appendChild(row);
     }
   }
@@ -1058,6 +1161,10 @@
     state.sound=!state.sound; if(state.sound){ pickSnd(); }
     soundBtn.classList.toggle("off",!state.sound); save();
   });
+
+  document.addEventListener("pointerdown", function(){
+    for(var k in SFXFILES) loadSfx(k);
+  }, {once:true});
 
   // ------------------- toast -------------------
   var toastEl=document.getElementById("toast"), toastT=null;
@@ -1098,7 +1205,7 @@
   }
 
   // ------------------- boot -------------------
-  document.getElementById("wmSub").textContent = "says 3 · " +
+  document.getElementById("wmSub").textContent = "Says 3 · " +
     new Date().toLocaleDateString(undefined, {weekday:"short", day:"numeric", month:"short"});
   if(freshDay){ say("welcomeBack"); }
   else if(state.picks.length===3){ say(doneCount()===3?"three":"picked"); }
