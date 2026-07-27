@@ -1,5 +1,5 @@
-var CACHE = "blobby-20260728005141";
-var ASSETS = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "b-happy.png", "b-worried.png", "b-determined.png", "b-surprised.png", "b-sad.png", "b-excited.png", "b-joy.png", "house-in.jpg", "house-out.jpg", "s1.m4a", "s2.m4a", "s3.m4a"];
+var CACHE = "blobby-20260728021802";
+var ASSETS = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "b-happy.png", "b-worried.png", "b-determined.png", "b-surprised.png", "b-sad.png", "b-excited.png", "b-joy.png", "pano-in.jpg", "pano-out.jpg", "s1.m4a", "laidback.m4a", "focus.m4a", "s2.m4a", "s3.m4a"];
 self.addEventListener("install", function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(ASSETS); })
     .then(function(){ return self.skipWaiting(); }));
